@@ -1,41 +1,38 @@
 #!/usr/bin/env python
 from telegram.ext import Updater, CommandHandler
-from settings import TELEGRAM_API_KEY, BOTAN_TOKEN
+from settings import TELEGRAM_API_KEY, CHECK_INTERVAL, MSG_THRESHOLD
 from data import Website
 import requests
 from decorators import required_argument, valid_url
-import botan
+import datetime
+import time
+import telegram
 
 
 help_text = """
-The bot ensures that your website was always online. In the case of status changes, the bot will tell you that you need to pay attention to the site. The website is checked for availability every 5 minutes.
+The bot ensures that your website is always online. In the case of unavailability for more than 5 minutes, the bot will send you a message.
 
 Commands:
 
 /help - Help
-/list - Show yours added urls
+/list - Show your added urls
 /add <url> - Add new url for monitoring
-/del <url> - Remove exist url
+/del <url> - Remove existing url
 /test <url> - Test current status code for url right now
 
 Url format is http[s]://host.zone/path?querystring
 For example:
 
-/test https://crusat.ru
-
-For any issues visit: https://github.com/crusat/telegram-website-monitor/issues
-
-Contact author: @crusat
+/test https://example.com
 """
 
+lastCall = datetime.datetime.now()
 
 def start(bot, update):
-    botan.track(BOTAN_TOKEN, update.message.chat_id, update.message.to_dict(), 'start')
     bot.sendMessage(chat_id=update.message.chat_id, text="Hello!\nThis is telegram bot to check that the site is alive.\n%s" % help_text)
 
 
 def show_help(bot, update):
-    botan.track(BOTAN_TOKEN, update.message.chat_id, update.message.to_dict(), 'help')
     bot.sendMessage(chat_id=update.message.chat_id, text="%s" % help_text)
 
 
@@ -43,7 +40,6 @@ def show_help(bot, update):
 @valid_url
 def add(bot, update, args):
     print('add')
-    botan.track(BOTAN_TOKEN, update.message.chat_id, update.message.to_dict(), 'add')
     print(args[0])
     url = args[0].lower()
     print(url)
@@ -63,7 +59,6 @@ def add(bot, update, args):
 
 @required_argument
 def delete(bot, update, args):
-    botan.track(BOTAN_TOKEN, update.message.chat_id, update.message.to_dict(), 'delete')
     url = args[0].lower()
     website = Website.get((Website.chat_id == update.message.chat_id) & (Website.url == url))
     if website:
@@ -74,11 +69,10 @@ def delete(bot, update, args):
 
 
 def url_list(bot, update):
-    botan.track(BOTAN_TOKEN, update.message.chat_id, update.message.to_dict(), 'list')
     websites = (Website.select().where(Website.chat_id == update.message.chat_id))
     out = ''
     for website in websites:
-        out += "%s (last status code: %s)\n" % (website.url, website.last_status_code)
+        out += "%s\n- last checked: %s\n- status code: %s\n- last seen %s" % (website.url, website.last_checked.strftime("%Y-%m-%d %H:%M:%S"), website.last_status_code, website.last_seen.strftime("%Y-%m-%d %H:%M:%S"))
     if out == '':
         bot.sendMessage(chat_id=update.message.chat_id, text="List empty")
     else:
@@ -88,7 +82,6 @@ def url_list(bot, update):
 @required_argument
 @valid_url
 def test(bot, update, args):
-    botan.track(BOTAN_TOKEN, update.message.chat_id, update.message.to_dict(), 'test')
     url = args[0].lower()
     try:
         r = requests.head(url)
@@ -99,7 +92,32 @@ def test(bot, update, args):
     except:
         bot.sendMessage(chat_id=update.message.chat_id, text="Error for url %s" % url)
 
+# check availability for all websites
+def check():
+    websites = (Website.select())
+    bot = telegram.Bot(token=TELEGRAM_API_KEY)
+    for website in websites:
+        url = website.url
+        print("Requesting availability for %s" %(url))
+        try:
+            r = requests.head(url)
+            status_code = r.status_code
+            if r.status_code == 200:
+                website.last_seen = datetime.datetime.now()
+                website.msg_send = 0
+        except:
+            status_code = 0
+        print("Status Code %s" %(status_code))
+        website.last_status_code = status_code
+        website.last_checked = datetime.datetime.now()
+        if status_code != 200:
+            if (datetime.datetime.now() > website.last_seen + datetime.timedelta(seconds = MSG_THRESHOLD)) and (website.msg_send == 0): 
+                website.msg_send = 1
+                bot.sendMessage(chat_id=website.chat_id,text="**Website:**\n- %s\n- not available for %s seconds.\n- Last seen %s" % (url, MSG_THRESHOLD,website.last_seen.strftime("%Y-%m-%d %H:%M:%S")))
 
+        website.save()
+
+## MAIN
 updater = Updater(TELEGRAM_API_KEY)
 updater.dispatcher.add_handler(CommandHandler('start', start))
 updater.dispatcher.add_handler(CommandHandler("add", add, pass_args=True))
@@ -109,6 +127,11 @@ updater.dispatcher.add_handler(CommandHandler("test", test, pass_args=True))
 updater.dispatcher.add_handler(CommandHandler("help", show_help))
 
 print('Telegram bot started')
+updater.start_polling(poll_interval = 1)
 
-updater.start_polling()
-updater.idle()
+while True:
+    if (datetime.datetime.now() > lastCall + datetime.timedelta(seconds = CHECK_INTERVAL)): 
+        lastCall = datetime.datetime.now()
+        check()
+    time.sleep(1)
+    
