@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+import sys
+sys.path.append('settings')
 from telegram.ext import Updater, CommandHandler
 from settings import TELEGRAM_API_KEY, CHECK_INTERVAL, MSG_THRESHOLD
 from data import Website
@@ -72,7 +74,7 @@ def url_list(bot, update):
     websites = (Website.select().where(Website.chat_id == update.message.chat_id))
     out = ''
     for website in websites:
-        out += "%s\n- last checked: %s\n- status code: %s\n- last seen %s" % (website.url, website.last_checked.strftime("%Y-%m-%d %H:%M:%S"), website.last_status_code, website.last_seen.strftime("%Y-%m-%d %H:%M:%S"))
+        out += "%s\n- last checked: %s\n- status code: %s\n- last seen: %s\n\n" % (website.url, website.last_checked.strftime("%Y-%m-%d %H:%M:%S"), website.last_status_code, website.last_seen.strftime("%Y-%m-%d %H:%M:%S"))
     if out == '':
         bot.sendMessage(chat_id=update.message.chat_id, text="List empty")
     else:
@@ -107,7 +109,7 @@ def check():
                 website.msg_send = 0
         except:
             status_code = 0
-        print("Status Code %s" %(status_code))
+        print("Status Code %s\n" %(status_code))
         website.last_status_code = status_code
         website.last_checked = datetime.datetime.now()
         if status_code != 200:
@@ -126,7 +128,7 @@ updater.dispatcher.add_handler(CommandHandler("list", url_list))
 updater.dispatcher.add_handler(CommandHandler("test", test, pass_args=True))
 updater.dispatcher.add_handler(CommandHandler("help", show_help))
 
-print('Telegram bot started')
+print('Telegram bot started\n')
 updater.start_polling(poll_interval = 1)
 
 while True:
