@@ -31,11 +31,11 @@ For example:
 lastCall = datetime.datetime.now()
 
 def start(bot, update):
-    bot.sendMessage(chat_id=update.message.chat_id, text="Hello!\nThis is telegram bot to check that the site is alive.\n%s" % help_text)
+    sendMsg(bot=bot,chat_id=update.message.chat_id, text="Hello!\nThis is telegram bot to check that the site is alive.\n%s" % help_text)
 
 
 def show_help(bot, update):
-    bot.sendMessage(chat_id=update.message.chat_id, text="%s" % help_text)
+    sendMsg(bot=bot,chat_id=update.message.chat_id, text="%s" % help_text)
 
 
 @required_argument
@@ -52,10 +52,10 @@ def add(bot, update, args):
         print('ok1')
         website.save(force_insert=True)
         print('ok2')
-        bot.sendMessage(chat_id=update.message.chat_id, text="Added %s" % url)
+        sendMsg(bot=bot,chat_id=update.message.chat_id, text="Added %s" % url)
         print('ok3')
     else:
-        bot.sendMessage(chat_id=update.message.chat_id, text="Website %s already exists" % url)
+        sendMsg(bot=bot,chat_id=update.message.chat_id, text="Website %s already exists" % url)
     print('end')
 
 
@@ -65,9 +65,9 @@ def delete(bot, update, args):
     website = Website.get((Website.chat_id == update.message.chat_id) & (Website.url == url))
     if website:
         website.delete_instance()
-        bot.sendMessage(chat_id=update.message.chat_id, text="Deleted %s" % url)
+        sendMsg(bot=bot,chat_id=update.message.chat_id, text="Deleted %s" % url)
     else:
-        bot.sendMessage(chat_id=update.message.chat_id, text="Website %s is not exists" % url)
+        sendMsg(bot=bot,chat_id=update.message.chat_id, text="Website %s is not exists" % url)
 
 
 def url_list(bot, update):
@@ -76,9 +76,9 @@ def url_list(bot, update):
     for website in websites:
         out += "%s\n- last checked: %s\n- status code: %s\n- last seen: %s\n\n" % (website.url, website.last_checked.strftime("%Y-%m-%d %H:%M:%S"), website.last_status_code, website.last_seen.strftime("%Y-%m-%d %H:%M:%S"))
     if out == '':
-        bot.sendMessage(chat_id=update.message.chat_id, text="List empty")
+        sendMsg(bot=bot,chat_id=update.message.chat_id, text="List empty")
     else:
-        bot.sendMessage(chat_id=update.message.chat_id, text="%s" % out)
+        sendMsg(bot=bot,chat_id=update.message.chat_id, text="%s" % out)
 
 
 @required_argument
@@ -88,11 +88,11 @@ def test(bot, update, args):
     try:
         r = requests.head(url)
         if r.status_code == 200:
-            bot.sendMessage(chat_id=update.message.chat_id, text="Url %s is alive (status code 200)" % url)
+            sendMsg(bot=bot,chat_id=update.message.chat_id, text="Url %s is alive (status code 200)" % url)
         else:
-            bot.sendMessage(chat_id=update.message.chat_id, text="Status code of url %s is %s" % (url, r.status_code))
+            sendMsg(bot=bot,chat_id=update.message.chat_id, text="Status code of url %s is %s" % (url, r.status_code))
     except:
-        bot.sendMessage(chat_id=update.message.chat_id, text="Error for url %s" % url)
+        sendMsg(bot=bot,chat_id=update.message.chat_id, text="Error for url %s" % url)
 
 # check availability for all websites
 def check():
@@ -114,10 +114,19 @@ def check():
         website.last_checked = datetime.datetime.now()
         if status_code != 200:
             if (datetime.datetime.now() > website.last_seen + datetime.timedelta(seconds = MSG_THRESHOLD)) and (website.msg_send == 0): 
-                website.msg_send = 1
-                bot.sendMessage(chat_id=website.chat_id,text="**Website:**\n- %s\n- not available for %s seconds.\n- Last seen %s" % (url, MSG_THRESHOLD,website.last_seen.strftime("%Y-%m-%d %H:%M:%S")))
+                website.msg_send = sendMsg(bot=bot,chat_id=website.chat_id,text="**Website:**\n- %s\n- not available for %s seconds.\n- Last seen %s" % (url, MSG_THRESHOLD,website.last_seen.strftime("%Y-%m-%d %H:%M:%S")))
 
         website.save()
+
+# send msg via bot
+def sendMsg(bot,chat_id, text):
+    try:
+        bot.sendMessage(chat_id=chat_id, text=text)
+        return 1
+    except:
+        print("EXCEPTION while sending Message: \n%s" %(text) )
+        return 0
+
 
 ## MAIN
 updater = Updater(TELEGRAM_API_KEY)
