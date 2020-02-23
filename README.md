@@ -18,6 +18,4 @@ Create your own Bot and request a API Key by adding @botfather to your contact l
 
 
 Based on the telegram-website-monitor made by:
-Author: Kuznetsov Aleksey aka crusat <crusat@yandex.ru>
-My telegram: [https://t.me/crusat](https://t.me/crusat) - any welcome!
-License: MIT
+Kuznetsov Aleksey aka crusat <crusat@yandex.ru>
