@@ -1,6 +1,7 @@
-# telegram-website-monitor
+# telegram website monitor
 
-Telegram bot that checks your websites for availability. Best to be run in a docker container.
+Telegram bot that checks your websites for availability. Sends an error message via Telegram, if website is not available.
+Best to be run in a docker container.
 
 
 ## Prerequisites
@@ -16,12 +17,19 @@ Telegram bot that checks your websites for availability. Best to be run in a doc
 #### Build image
     $ docker build -t telegram-website-monitor .
 
-#### Create and delete container to get settings file
+#### Create and delete container to extract settings file
     $ docker create --name  website-monitor -v WebsiteMonitor_settings:/home/settings telegram-website-monitor
     $ docker rm website-monitor
 
 #### Edit settings file
     $ sudo nano /var/lib/docker/volumes/WebsiteMonitor_settings/_data/settings.py
+    
+##### Parameters
+| Parameter        | Description                              |
+| ---------------- | ---------------------------------------- |
+| TELEGRAM_API_KEY | API Key optained from @botfather         |
+| CHECK_INTERVAL   | Interval between two checks              |
+| MSG_THRESHOLD    | Threshold before error message  is send  |
 
 ## Run
     $ docker run -d --name  website-monitor --restart always -v WebsiteMonitor_data:/home/data -v WebsiteMonitor_settings:/home/settings -v /etc/localtime:	/etc/localtime 	telegram-website-monitor
